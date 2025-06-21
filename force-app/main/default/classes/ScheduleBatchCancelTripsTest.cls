@@ -1,29 +1,44 @@
-/**
- * This class contains unit tests for validating the behavior of Apex classes
- * and triggers.
- *
- * Unit tests are class methods that verify whether a particular piece
- * of code is working properly. Unit test methods take no arguments,
- * commit no data to the database, and are flagged with the testMethod
- * keyword in the method definition.
- *
- * All test methods in an org are executed whenever Apex code is deployed
- * to a production org to confirm correctness, ensure code
- * coverage, and prevent regressions. All Apex classes are
- * required to have at least 75% code coverage in order to be deployed
- * to a production org. In addition, all triggers must have some code coverage.
- * 
- * The @isTest class annotation indicates this class only contains test
- * methods. Classes defined with the @isTest annotation do not count against
- * the org size limit for all Apex scripts.
- *
- * See the Apex Language Reference for more information about Testing and Code Coverage.
- */
 @isTest
-private class ScheduleBatchCancelTripsTest {
-
+public class ScheduleBatchCancelTripsTest {
+    
+    @testSetup
+    static void setup() {
+        List<Trip__c> trips = new List<Trip__c>();
+        Date targetDate = Date.today().addDays(7);
+        for (Integer i = 0; i < 10; i++) {
+            trips.add(new Trip__c(
+                Start_Date__c = targetDate,
+                Number_Of_Participants__c = 5,
+                Status__c = 'Upcoming' // valeur valide
+            ));
+        }
+        insert trips;
+    }
+    
     @isTest
-    static void myUnitTest() {
-        // TO DO: implement unit test
+    static void testScheduledBatch() {
+        List<Trip__c> tripsBefore = [SELECT Id, Status__c FROM Trip__c WHERE Start_Date__c = :Date.today().addDays(7)];
+        
+        for (Trip__c t : tripsBefore) {
+            System.assertEquals('Upcoming', t.Status__c);
+        }
+        
+        Test.startTest();
+        
+        // Planifier le job (test uniquement la planification)
+        String cronExp = '0 0 0 1 1 ? 2099';
+        ScheduleBatchCancelTrips job = new ScheduleBatchCancelTrips();
+        String jobId = System.schedule('Test Scheduled Batch', cronExp, job);
+        
+        // Cela force le batch à s’exécuter immédiatement dans le contexte du test. Ainsi : Le batch met à jour les enregistrements directement et complètement pendant le test, on peux vérifier la modification des statuts juste après Test.stopTest().
+        BatchCancelTrips batch = new BatchCancelTrips();
+        Database.executeBatch(batch);
+        
+        Test.stopTest();
+        
+        List<Trip__c> tripsAfter = [SELECT Id, Status__c FROM Trip__c WHERE Start_Date__c = :Date.today().addDays(7)];
+        for (Trip__c t : tripsAfter) {
+            System.assertEquals('Cancelled', t.Status__c, 'Le statut devrait être Cancelled');
+        }
     }
 }

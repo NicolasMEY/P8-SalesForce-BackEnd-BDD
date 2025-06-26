@@ -1,29 +1,62 @@
-/**
- * This class contains unit tests for validating the behavior of Apex classes
- * and triggers.
- *
- * Unit tests are class methods that verify whether a particular piece
- * of code is working properly. Unit test methods take no arguments,
- * commit no data to the database, and are flagged with the testMethod
- * keyword in the method definition.
- *
- * All test methods in an org are executed whenever Apex code is deployed
- * to a production org to confirm correctness, ensure code
- * coverage, and prevent regressions. All Apex classes are
- * required to have at least 75% code coverage in order to be deployed
- * to a production org. In addition, all triggers must have some code coverage.
- * 
- * The @isTest class annotation indicates this class only contains test
- * methods. Classes defined with the @isTest annotation do not count against
- * the org size limit for all Apex scripts.
- *
- * See the Apex Language Reference for more information about Testing and Code Coverage.
- */
 @isTest
-private class TripStatusUpdateBatchTest {
+public class TripStatusUpdateBatchTest {
+
+    @testSetup
+    static void setupData() {
+        // Aujourd'hui, 25 juin 2025 (simulation)
+        Date today = Date.today();
+
+        // Voyage terminé (end date avant today)
+        insert new Trip__c(
+            Start_Date__c = today.addDays(-10),
+            End_Date__c = today.addDays(-1),
+            Status__c = ''
+        );
+
+        // Voyage en cours (start date <= today <= end date)
+        insert new Trip__c(
+            Start_Date__c = today.addDays(-1),
+            End_Date__c = today.addDays(5),
+            Status__c = ''
+        );
+
+        // Voyage à venir (start date > today)
+        insert new Trip__c(
+            Start_Date__c = today.addDays(2),
+            End_Date__c = today.addDays(10),
+            Status__c = ''
+        );
+
+        // Voyage avec statut déjà correct (In Progress)
+        insert new Trip__c(
+            Start_Date__c = today.addDays(2),
+            End_Date__c = today.addDays(5),
+            Status__c = 'Upcoming'
+        );
+
+        // Voyage Cancelled (doit être exclu)
+        insert new Trip__c(
+            Start_Date__c = today.addDays(-1),
+            End_Date__c = today.addDays(5),
+            Status__c = 'Cancelled'
+        );
+    }
 
     @isTest
-    static void myUnitTest() {
-        // TO DO: implement unit test
+    static void testBatchUpdate() {
+        Test.startTest();
+        TripStatusUpdateBatch batch = new TripStatusUpdateBatch();
+        Database.executeBatch(batch);
+        Test.stopTest();
+
+        // On récupère les voyages créés en testSetup (hors 'Cancelled')
+        List<Trip__c> trips = [SELECT Status__c, Start_Date__c, End_Date__c FROM Trip__c WHERE Status__c != 'Cancelled' ORDER BY Start_Date__c ASC];
+
+
+        // Maintenant vérifier par ordre logique
+        System.assertEquals('Completed', trips[0].Status__c, 'Statut attendu pour voyage terminé');
+        System.assertEquals('In Progress', trips[1].Status__c, 'Statut attendu pour voyage en cours');
+        System.assertEquals('Upcoming', trips[2].Status__c, 'Statut attendu pour voyage à venir');
+        System.assertEquals('Upcoming', trips[3].Status__c, 'Statut attendu pour voyage déjà correct');
     }
 }

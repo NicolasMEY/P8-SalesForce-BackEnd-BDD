@@ -11,6 +11,7 @@ public with sharing class BatchCancelTrips implements Database.Batchable<SObject
             WHERE Start_Date__c = :targetDate
             AND Status__c != null
             AND Number_Of_Participants__c < 10
+            WITH SECURITY_ENFORCED
         ]);
     }
 

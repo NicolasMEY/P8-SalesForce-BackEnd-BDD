@@ -19,7 +19,15 @@ public with sharing class BatchCancelTrips implements Database.Batchable<SObject
         for (Trip__c trip : trips) {
             trip.Status__c = 'Cancelled';
         }
-        update trips;
+        // update trips;
+        
+        // Update partiel avec gestion d’erreur
+        Database.SaveResult[] results = Database.update(trips, false);
+        for (Database.SaveResult res : results) {
+            if (!res.isSuccess()) {
+                System.debug('Erreur lors de la mise à jour Trip__c : ' + res.getErrors()[0].getMessage());
+            }
+        }
     }
 
     public void finish(Database.BatchableContext bc) {

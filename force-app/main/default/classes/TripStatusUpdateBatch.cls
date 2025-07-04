@@ -39,8 +39,28 @@ public with sharing class TripStatusUpdateBatch implements Database.Batchable<SO
                     }
                 }
         
+                // if (!toUpdate.isEmpty()) {
+                //     update toUpdate;
+                // }
+
+                // Alternative avec Database.update
                 if (!toUpdate.isEmpty()) {
-                    update toUpdate;
+
+                    // Si je veux implémenter ma class SecurityUtil
+                    // // Vérifie l'accès en update
+                    // SecurityUtil.checkUpdateAccess(Trip__c.sObjectType);
+                
+                    // // Filtre les champs inaccessibles
+                    // List<SObject> filteredTrips = SecurityUtil.stripFields((List<SObject>)toUpdate, AccessType.UPDATABLE);
+                    // toUpdate = (List<Trip__c>)filteredTrips;
+                
+                    // Update partiel avec gestion d’erreur
+                    Database.SaveResult[] results = Database.update(toUpdate, false);
+                    for (Database.SaveResult res : results) {
+                        if (!res.isSuccess()) {
+                            System.debug('Erreur lors de la mise à jour Trip__c : ' + res.getErrors()[0].getMessage());
+                        }
+                    }
                 }
             }
         
